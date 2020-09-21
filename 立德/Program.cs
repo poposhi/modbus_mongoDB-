@@ -18,5 +18,6 @@ namespace modbus_mongoDB建立
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());
         }
+
     }
 }
