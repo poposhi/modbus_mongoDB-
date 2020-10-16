@@ -58,28 +58,28 @@ namespace modbus_mongoDB建立
             settings.ServerSelectionTimeout = new TimeSpan(0, 0, 0, 0, 1000);
             settings.SocketTimeout = new TimeSpan(0, 0, 0, 0, 1000);
             settings.WaitQueueTimeout = new TimeSpan(0, 0, 0, 0, 0100);
+            //settings.Server = new MongoServerAddress("localhost");
             settings.Server = new MongoServerAddress("localhost");
             this.dbconn = new MongoClient(settings);
-            //this.db = dbconn.GetDatabase("Tsai_Test");  //資料庫名稱 
             local_db = dbconn.GetDatabase(local_db_name);  //資料庫名稱 
-                                                           //this.dbconn = new MongoClient(mlabconn);   //設立連線  
-                                                           //this.db = dbconn.GetDatabase("solar");  //資料庫名稱   
 
 
             ////Server端，MongoDB連線Timeout設定
-            //MongoIdentity identity = new MongoInternalIdentity("admin", "root"); //遠端資料庫帳號密碼 
-            //MongoIdentityEvidence evidence = new PasswordEvidence("pc152");
-            //MongoClientSettings esettings = new MongoClientSettings();
-            //esettings.WaitQueueSize = int.MaxValue;
-            //esettings.ConnectTimeout = new TimeSpan(0, 0, 0, 0, 2000);
-            //esettings.ServerSelectionTimeout = new TimeSpan(0, 0, 0, 0, 2000);
-            //esettings.SocketTimeout = new TimeSpan(0, 0, 0, 0, 2000);
-            //esettings.WaitQueueTimeout = new TimeSpan(0, 0, 0, 0, 2000);
-            ////esettings.Server = new MongoServerAddress("140.118.172.75");
-            //esettings.Server = new MongoServerAddress("119.252.117.54");
-            //esettings.Credential = new MongoCredential(null, identity, evidence);
-            //this.ems_dbconn = new MongoClient(esettings);
-            //this.ems_db = ems_dbconn.GetDatabase(remote_db_name);  //資料庫名稱 
+            MongoIdentity identity = new MongoInternalIdentity("admin", "root"); // 資料庫名稱  使用者名稱
+             MongoIdentityEvidence evidence = new PasswordEvidence("pc152");
+            MongoClientSettings esettings = new MongoClientSettings();
+            esettings.WaitQueueSize = int.MaxValue;
+            esettings.ConnectTimeout = new TimeSpan(0, 0, 0, 0, 200);
+            esettings.ServerSelectionTimeout = new TimeSpan(0, 0, 0, 0, 200);
+            esettings.SocketTimeout = new TimeSpan(0, 0, 0, 0, 200);
+            esettings.WaitQueueTimeout = new TimeSpan(0, 0, 0, 0, 200);
+            //esettings.Server = new MongoServerAddress("140.118.172.75");        //EMS(ntust)
+            //esettings.Server = new MongoServerAddress("140.118.172.154");       //MGC(ntust)
+            esettings.Server = new MongoServerAddress("140.118.207.49");         
+            //esettings.Server = new MongoServerAddress("192.168.1.8");           //EMS
+            esettings.Credential = new MongoCredential(null, identity, evidence);
+            this.ems_dbconn = new MongoClient(esettings);
+            this.ems_db = ems_dbconn.GetDatabase("solar");  //資料庫名稱 
 
             #endregion
 
@@ -462,7 +462,7 @@ namespace modbus_mongoDB建立
         #region 建立modbus master 
 
         #endregion
-        #region MyRegion
+        #region 我寫的副程式 (拿旗標寫旗標)
         private string ggetbit(int value, int bit_number)//取出16位元的幾個bit，輸入 數值  第幾個bit 
         {
             string flag;
@@ -501,6 +501,18 @@ namespace modbus_mongoDB建立
         private void Form1_Load(object sender, EventArgs e)
         {
 
+
+            
+            //上傳故障 
+            DateTime time_now = DateTime.Now;
+            string ID = "5da46627183ced1a330f6d1f";
+            //Mongo_error(local_db, ID,"error test7897", time_now);
+            //Mongo_Reset(local_db, ID, "error test7897", time_now);
+
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
             #region pcs上傳資料
             ushort[] pcs_data = new ushort[53];
             for (ushort i = 0; i < pcs_data.Length; i++)
@@ -508,34 +520,32 @@ namespace modbus_mongoDB建立
                 pcs_data[i] = i;
                 if (i == 23)
                 {
-                    int ii = i + i+i;
+                    int ii = i + i + i;
                     pcs_data[i] = (ushort)ii;
                 }
 
             }
-            while (true)
-            {
                 Debug.Print("pcs_data 製作完成 ");
+                
                 PCS1.Holding_register = pcs_data;
                 PCS1.Put_Data1();
                 PCS1.Device_ID = "5da46627183ced1a330f6d1f";
-                Mongo_PCS(local_db, PCS1, DateTime.Now);
+                Mongo_PCS(ems_db, PCS1, DateTime.Now);
                 Debug.Print("pcs upload ");
-                Thread.Sleep(60000);
-
+                label1.Text = "pcs_data upload "+ DateTime.Now.ToString();
                 Debug.Print(DateTime.Now.ToString());
-            }
 
-            #endregion
+
+
             #region Mbms上傳資料 
-            //ushort[] mbms_data1 = new ushort[150];
-            //ushort[] mbms_data2 = new ushort[150];
-            //for (ushort i = 0; i < mbms_data1.Length; i++)
-            //{
-            //    mbms_data1[i] = i;
-            //    int ii = i + i;
-            //    mbms_data2[i] = (ushort)ii;
-            //}
+            ushort[] mbms_data1 = new ushort[150];
+            ushort[] mbms_data2 = new ushort[150];
+            for (ushort i = 0; i < mbms_data1.Length; i++)
+            {
+                mbms_data1[i] = i;
+                int ii = i + i;
+                mbms_data2[i] = (ushort)ii;
+            }
             //while (true)
             //{
 
@@ -552,12 +562,8 @@ namespace modbus_mongoDB建立
             //    Debug.Print(DateTime.Now.ToString());
             //}
             #endregion
-            //上傳故障 
-            DateTime time_now = DateTime.Now;
-            string ID = "5da46627183ced1a330f6d1f";
-            //Mongo_error(local_db, ID,"error test7897", time_now);
-            //Mongo_Reset(local_db, ID, "error test7897", time_now);
 
+            #endregion
         }
     }
 }
