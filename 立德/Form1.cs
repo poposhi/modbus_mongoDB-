@@ -68,12 +68,12 @@ namespace modbus_mongoDB建立
         //private string mlabconn = "mongodb://tsai_user:0000@localhost:27017";
         #endregion
         #region 地址 
-        ushort bat_v_address = 3141;//電池電壓 
-        ushort ac_v_address = 3113;//電池電流
-        ushort commend_mode = 3400;//工作模式  1 充電 2 放電 
-        ushort commend_charge_i = 3402;//充電電流指令  
-        ushort commend_discharge_i = 3404;//放電電流指令  
-
+        ushort bat_v_address = (ushort)Convert.ToInt32("3141", 16);//電池電壓 
+        ushort ac_v_address = (ushort)Convert.ToInt32("3113", 16);//電池電流
+        ushort commend_mode = (ushort)Convert.ToInt32("3400", 16);//工作模式  1 充電 2 放電 
+        ushort commend_charge_i = (ushort)Convert.ToInt32("3402", 16);//充電電流指令  
+        ushort commend_discharge_i = (ushort)Convert.ToInt32("3404", 16);//放電電流指令  
+        
         #endregion
         public Form1()
         {
@@ -687,35 +687,40 @@ namespace modbus_mongoDB建立
             byte slaveid = 1;
             ushort value = 10;
 
-            ushort a = (ushort)Convert.ToInt32("0x3110", 10);
-            Debug.Print("a :" + a);
-            master_pcs.WriteSingleRegister(slaveid, (ushort)13313, value);//commend_charge_i
+            //ushort a = (ushort)Convert.ToInt32("3110", 16);
+            //Debug.Print("a :" + a);
+            //master_pcs.WriteSingleRegister(slaveid, (ushort)13313, value);//commend_charge_i
             int decValue = int.Parse(bat_v_address.ToString(), System.Globalization.NumberStyles.HexNumber)-1;
             Debug.Print("decValue" + decValue);
             ushort[] holdingregister_dc = master_pcs.ReadHoldingRegisters(1, (ushort)decValue, 2);
             //13 會寫 14 
             Debug.Print("bat_v" + holdingregister_dc[0].ToString());
             Debug.Print("bat_i" + to_2complement (holdingregister_dc[1]).ToString());
+            PCS1.V_dc = holdingregister_dc[0];
+            PCS1.I_dc = to_2complement(holdingregister_dc[1]);
+            PCS1.P_dc = PCS1.V_dc * PCS1.I_dc/100;
+            
+            
             #region pcs上傳資料
-            ushort[] pcs_data = new ushort[53];
-            for (ushort i = 0; i < pcs_data.Length; i++)
-            {
-                pcs_data[i] = i;
-                if (i == 23)
-                {
-                    int ii = i + i + i;
-                    pcs_data[i] = (ushort)ii;
-                }
+            //ushort[] pcs_data = new ushort[53];
+            //for (ushort i = 0; i < pcs_data.Length; i++)
+            //{
+            //    pcs_data[i] = i;
+            //    if (i == 23)
+            //    {
+            //        int ii = i + i + i;
+            //        pcs_data[i] = (ushort)ii;
+            //    }
 
-            }
-                Debug.Print("pcs_data 製作完成 ");
+            //}
+            //    Debug.Print("pcs_data 製作完成 ");
                 
-                PCS1.Holding_register = pcs_data;
-                PCS1.Put_Data1();
-                PCS1.Device_ID = "5da46627183ced1a330f6d1f";
+            //    PCS1.Holding_register = pcs_data;
+            //    PCS1.Put_Data1();
+            //    PCS1.Device_ID = "5da46627183ced1a330f6d1f";
                 Mongo_PCS(ems_db, PCS1, DateTime.Now);
                 Debug.Print("pcs upload ");
-                label1.Text = "pcs_data upload "+ DateTime.Now.ToString();
+                label1.Text = "pcs_data uploaded "+ DateTime.Now.ToString();
                 Debug.Print(DateTime.Now.ToString());
 
 
