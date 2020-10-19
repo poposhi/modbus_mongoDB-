@@ -68,9 +68,9 @@ namespace modbus_mongoDB建立
         //private string mlabconn = "mongodb://tsai_user:0000@localhost:27017";
         #endregion
         #region 地址 
-        ushort bat_v_address = (ushort)Convert.ToInt32("3141", 16);//電池電壓 
-        ushort ac_v_address = (ushort)Convert.ToInt32("3113", 16);//電池電流
-        ushort commend_mode = (ushort)Convert.ToInt32("3400", 16);//工作模式  1 充電 2 放電 
+        ushort bat_v_address = (ushort) (Convert.ToInt32("3140", 16));//電池電壓 
+        ushort ac_v_address = (ushort)Convert.ToInt32("3113", 16);//
+        ushort commend_mode = (ushort) (Convert.ToInt32("3400", 16));//工作模式  1 充電 2 放電 
         ushort commend_charge_i = (ushort)Convert.ToInt32("3402", 16);//充電電流指令  
         ushort commend_discharge_i = (ushort)Convert.ToInt32("3404", 16);//放電電流指令  
         
@@ -614,43 +614,54 @@ namespace modbus_mongoDB建立
         private void timer_read_upload_Tick(object sender, EventArgs e)
         {//讀取pcs資料並且上傳 
             //讀取資料
-            #region Modbus 4 通訊測試
-            //DateTime new_time = DateTime.Now;
-            try
-            {
-                //last_time_dg = new_time;
-                master_pcs.Transport.Retries = 0;   //don't have to do retries
-                master_pcs.Transport.ReadTimeout = 500; //milliseconds
-                ushort[] holdingregister_dc = master_pcs.ReadHoldingRegisters(1,bat_v_address , 2);
+            //#region Modbus 4 通訊測試
+            ////DateTime new_time = DateTime.Now;
+            //try
+            //{
+            //    //last_time_dg = new_time;
+            //    master_pcs.Transport.Retries = 0;   //don't have to do retries
+            //    master_pcs.Transport.ReadTimeout = 500; //milliseconds
+            //    ushort[] holdingregister_dc = master_pcs.ReadHoldingRegisters(1,bat_v_address , 2);
 
-                Debug.Print("bat_v" + holdingregister_dc[0].ToString());
-                Debug.Print("bat_i" + holdingregister_dc[1].ToString());
-                PCS1.V_dc = holdingregister_dc[0];
-                PCS1.I_dc = holdingregister_dc[1];
-                Thread.Sleep(200);
-                ushort[] holdingregister_ac = master_pcs.ReadHoldingRegisters(1, ac_v_address, 2);
-                PCS1.V_out2 = holdingregister_ac[0];
-                //
-                ushort[] holdingregister_commend = master_pcs.ReadHoldingRegisters(1, commend_mode, 1);
-                if (holdingregister_commend[0]==1)
-                {
-                    lv_Print(lv,"放電", (PCS1.V_dc * PCS1.I_dc).ToString() + "W");
-                }
-                if (holdingregister_commend[0] == 2)
-                {
-                    lv_Print(lv, "充電", (PCS1.V_dc* PCS1.I_dc).ToString()+"W");
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.Print("modbus Exception" + ex.Message);
-            }
-            #endregion
+            //    Debug.Print("bat_v" + holdingregister_dc[0].ToString());
+            //    Debug.Print("bat_i" + holdingregister_dc[1].ToString());
+            //    PCS1.V_dc = holdingregister_dc[0];
+            //    PCS1.I_dc = holdingregister_dc[1];
+            //    Thread.Sleep(200);
+            //    ushort[] holdingregister_ac = master_pcs.ReadHoldingRegisters(1, ac_v_address, 2);
+            //    PCS1.V_out2 = holdingregister_ac[0];
+            //    //
+            //    ushort[] holdingregister_commend = master_pcs.ReadHoldingRegisters(1, commend_mode, 1);
+            //    if (holdingregister_commend[0]==1)
+            //    {
+            //        lv_Print(lv,"放電", (PCS1.V_dc * PCS1.I_dc).ToString() + "W");
+            //    }
+            //    if (holdingregister_commend[0] == 2)
+            //    {
+            //        lv_Print(lv, "充電", (PCS1.V_dc* PCS1.I_dc).ToString()+"W");
+            //    }
+            //}
+            //catch (Exception ex)
+            //{
+            //    Debug.Print("modbus Exception" + ex.Message);
+            //}
+            //#endregion
             //上傳
             try
             {
                 DateTime new_time = DateTime.Now;
+                master_pcs.WriteSingleRegister(1, commend_discharge_i, (ushort)new_time.Minute);//commend_charge_i
+                Thread.Sleep(200);
+                ushort[] holdingregister_dc = master_pcs.ReadHoldingRegisters(1, bat_v_address, 2);
+                //13 會寫 14 
+                Debug.Print("bat_v" + holdingregister_dc[0].ToString());
+                Debug.Print("bat_i" + to_2complement(holdingregister_dc[1]).ToString());
+                PCS1.V_dc = holdingregister_dc[0];
+                PCS1.I_dc = to_2complement(holdingregister_dc[1]);
+                PCS1.P_dc = PCS1.V_dc * PCS1.I_dc / 100;
+                PCS1.Device_ID = "5da46627183ced1a330f6d1f";
                 Mongo_PCS(ems_db,PCS1, new_time);
+                
             }
             catch (Exception ex)
             {
@@ -689,18 +700,20 @@ namespace modbus_mongoDB建立
 
             //ushort a = (ushort)Convert.ToInt32("3110", 16);
             //Debug.Print("a :" + a);
-            //master_pcs.WriteSingleRegister(slaveid, (ushort)13313, value);//commend_charge_i
-            int decValue = int.Parse(bat_v_address.ToString(), System.Globalization.NumberStyles.HexNumber)-1;
-            Debug.Print("decValue" + decValue);
-            ushort[] holdingregister_dc = master_pcs.ReadHoldingRegisters(1, (ushort)decValue, 2);
+            master_pcs.WriteSingleRegister(slaveid, commend_mode, 2);//commend_charge_i
+            Thread.Sleep(200);
+            master_pcs.WriteSingleRegister(slaveid, commend_discharge_i, value);//commend_charge_i
+            //int decValue = int.Parse(bat_v_address.ToString(), System.Globalization.NumberStyles.HexNumber)-1;
+            //Debug.Print("decValue" + decValue);
+            ushort[] holdingregister_dc = master_pcs.ReadHoldingRegisters(1, bat_v_address, 2);
             //13 會寫 14 
             Debug.Print("bat_v" + holdingregister_dc[0].ToString());
             Debug.Print("bat_i" + to_2complement (holdingregister_dc[1]).ToString());
             PCS1.V_dc = holdingregister_dc[0];
             PCS1.I_dc = to_2complement(holdingregister_dc[1]);
             PCS1.P_dc = PCS1.V_dc * PCS1.I_dc/100;
-            
-            
+
+
             #region pcs上傳資料
             //ushort[] pcs_data = new ushort[53];
             //for (ushort i = 0; i < pcs_data.Length; i++)
@@ -714,11 +727,11 @@ namespace modbus_mongoDB建立
 
             //}
             //    Debug.Print("pcs_data 製作完成 ");
-                
+
             //    PCS1.Holding_register = pcs_data;
             //    PCS1.Put_Data1();
-            //    PCS1.Device_ID = "5da46627183ced1a330f6d1f";
-                Mongo_PCS(ems_db, PCS1, DateTime.Now);
+            PCS1.Device_ID = "5da46627183ced1a330f6d1f";
+            Mongo_PCS(ems_db, PCS1, DateTime.Now);
                 Debug.Print("pcs upload ");
                 label1.Text = "pcs_data uploaded "+ DateTime.Now.ToString();
                 Debug.Print(DateTime.Now.ToString());
