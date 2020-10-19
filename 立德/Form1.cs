@@ -1,6 +1,7 @@
 ﻿///這個程式主要是用來快速建立一個電網控制器 ，能夠用文字編輯器設定 是否開啟，本地遠端資料庫，pcs modbus設定，多少秒讀取一次 各項變數是第幾個資料 
 ///
 using System;
+using System.Configuration;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -15,6 +16,14 @@ using System.Diagnostics;//debug msg在『輸出』視窗觀看
 using System.Threading;  // 可以讓整個執行緒停止  Thread.Sleep(2000);
 using ThreadingTimer = System.Threading.Timer;  //可以開一個平行緒計算時間
 using System.IO; // 讀取寫入文字檔 
+
+#endregion
+#region Modbus
+using Modbus;
+using Modbus.Device;
+using Modbus.Data;
+using Modbus.Message;
+using System.IO.Ports;  //for serial port
 
 #endregion
 // 資料庫連線設定 讀取一個collection 並且上傳到自己的資料庫 
@@ -38,6 +47,18 @@ namespace modbus_mongoDB建立
         public MBMS MBMS1 = new MBMS();
         int time_offset = 8;
         #endregion
+        #region Modbus 2 建立相關物件 
+        //照理來說立德計劃應該只需要pcs還有bms 還有電表 
+        SerialPort serialPort_dg = new SerialPort(), serialPort_pv1 = new SerialPort(), serialPort_pcs = new SerialPort(), serialPort_load = new SerialPort();
+        ModbusSerialMaster master_dg;
+        ModbusSerialMaster master_pv1;
+        ModbusSerialMaster master_pcs;
+        ModbusSerialMaster master_load;
+        string port_pcs = "pcs_com";
+        string port_pv = "pv_com";
+        string port_dg = "DG_com";
+        string port_load = "load_com";
+        #endregion
         #region MongoDB2 宣告變數 
         private MongoClient dbconn;
         public static IMongoDatabase local_db;//為了要讓其他的物件也可以使用 
@@ -46,9 +67,18 @@ namespace modbus_mongoDB建立
         //private string mlabconn = "mongodb://localhost:27017/?wtimeoutMS=200";  //mlab提供的連線字串 
         //private string mlabconn = "mongodb://tsai_user:0000@localhost:27017";
         #endregion
+        #region 地址 
+        ushort bat_v_address = 3140;//電池電壓 
+        ushort ac_v_address = 3113;//電池電壓 
+        ushort commend_mode = 3400;//工作模式  1 充電 2 放電 
+        ushort commend_charge_i = 3402;//充電電流指令  
+        ushort commend_discharge_i = 3404;//放電電流指令  
+
+        #endregion
         public Form1()
         {
             InitializeComponent();
+            InitialLv();
             #region MongoDB3 連線建立 連線設定
 
             ////Local端，MongoDB連線Timeout設定
@@ -82,7 +112,14 @@ namespace modbus_mongoDB建立
             this.ems_db = ems_dbconn.GetDatabase("solar");  //資料庫名稱 
 
             #endregion
+            #region Modbus 3 rtu 連線
+            try //開啟pcs串列 
+            { set_serial(ref serialPort_pcs, ref master_pcs, port_pcs, 9600); }
+            catch (Exception e)
 
+            { Debug.Print(e.Message); }
+
+            #endregion
             timertrickAtBeginning.Enabled = true;
         }
         #region mongodb 使用
@@ -460,7 +497,27 @@ namespace modbus_mongoDB建立
         #endregion
 
         #region 建立modbus master 
-
+        private void set_serial(ref SerialPort serial_obj, ref ModbusSerialMaster SerialMaster, string PortName, int BaudRate)
+        {
+            try
+            {
+                serial_obj.PortName = System.Configuration.ConfigurationManager.AppSettings[PortName];
+                serial_obj.BaudRate = BaudRate;
+                serial_obj.DataBits = 8;
+                serial_obj.Parity = Parity.None;
+                serial_obj.StopBits = StopBits.One;
+                serial_obj.Open();
+                SerialMaster = ModbusSerialMaster.CreateRtu(serial_obj);
+                Debug.Print(DateTime.Now.ToString() + " =>Open " + serial_obj.PortName + " sucessfully!");
+            }
+            catch
+            {
+                serial_obj.Close();
+                Thread.Sleep(2000);
+                serial_obj.Open();
+                Debug.Print(DateTime.Now.ToString() + " =>Disconnect " + serial_obj.PortName);
+            }
+        }
         #endregion
         #region 我寫的副程式 (拿旗標寫旗標)
         private string ggetbit(int value, int bit_number)//取出16位元的幾個bit，輸入 數值  第幾個bit 
@@ -493,6 +550,120 @@ namespace modbus_mongoDB建立
             value = Convert.ToInt32(str, 2);
         }
         #endregion
+        #region listview
+        public static void lv_Print(ListView list, string message)// 輸入listview ,兩個str
+        {
+            String time = DateTime.Now.ToString();
+            //判斷這個TextBox的物件是否在同一個執行緒上
+            if (list.InvokeRequired)
+            {
+                Listview_Print ph = new Listview_Print(lv_Print);
+                list.Invoke(ph, list, time, message);
+            }
+            else
+            {
+                String[] row = { time, message };
+                ListViewItem item = new ListViewItem(row);
+                //ADD ITEMS
+                list.Items.Add(item);
+                if (list.Items.Count > 1000)
+                {
+                    list.Items.RemoveAt(1);
+                }
+            }
+        }
+        public static void lv_Print(ListView list, string message1, string message2)// 輸入listview ,兩個str
+        {
+            //判斷這個TextBox的物件是否在同一個執行緒上
+            if (list.InvokeRequired)
+            {
+                Listview_Print ph = new Listview_Print(lv_Print);
+                list.Invoke(ph, list, message1, message2);
+            }
+            else
+            {
+                String[] row = { message1, message2 };
+                ListViewItem item = new ListViewItem(row);
+                //ADD ITEMS
+                list.Items.Add(item);
+                if (list.Items.Count > 1000)
+                {
+                    list.Items.RemoveAt(1);
+                }
+            }
+        }
+        private void InitialLv()
+        {
+            lv.View = View.Details;
+            lv.GridLines = true;
+            lv.LabelEdit = false;
+            lv.FullRowSelect = true;
+            lv.Columns.Add("message1", 150);
+            lv.Columns.Add("message2", 200);
+            lv.GetType().GetProperty("DoubleBuffered", System.Reflection.BindingFlags.Instance
+| System.Reflection.BindingFlags.NonPublic).SetValue(lv, true, null);
+        }
+        public delegate void Listview_Print(ListView list, string time, string type);//time type 沒改
+        public delegate void lPrintHandler(Label label, string text);
+        #endregion
+        private void button3_Click(object sender, EventArgs e)
+        {
+            timer_read_upload.Enabled = true;
+        }
+
+        private void timer_read_upload_Tick(object sender, EventArgs e)
+        {//讀取pcs資料並且上傳 
+            //讀取資料
+            #region Modbus 4 通訊測試
+            //DateTime new_time = DateTime.Now;
+            try
+            {
+                //last_time_dg = new_time;
+                master_pcs.Transport.Retries = 0;   //don't have to do retries
+                master_pcs.Transport.ReadTimeout = 500; //milliseconds
+                ushort[] holdingregister_dc = master_pcs.ReadHoldingRegisters(1,bat_v_address , 2);
+
+                Debug.Print("bat_v" + holdingregister_dc[0].ToString());
+                Debug.Print("bat_i" + holdingregister_dc[1].ToString());
+                PCS1.V_dc = holdingregister_dc[0];
+                PCS1.I_dc = holdingregister_dc[1];
+                Thread.Sleep(200);
+                ushort[] holdingregister_ac = master_pcs.ReadHoldingRegisters(1, ac_v_address, 2);
+                PCS1.V_out2 = holdingregister_ac[0];
+                //
+                ushort[] holdingregister_commend = master_pcs.ReadHoldingRegisters(1, commend_mode, 1);
+                if (holdingregister_commend[0]==1)
+                {
+                    lv_Print(lv,"放電", (PCS1.V_dc * PCS1.I_dc).ToString() + "W");
+                }
+                if (holdingregister_commend[0] == 2)
+                {
+                    lv_Print(lv, "充電", (PCS1.V_dc* PCS1.I_dc).ToString()+"W");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.Print("modbus Exception" + ex.Message);
+            }
+            #endregion
+            //上傳
+            try
+            {
+                DateTime new_time = DateTime.Now;
+                Mongo_PCS(ems_db,PCS1, new_time);
+            }
+            catch (Exception ex)
+            {
+                Debug.Print("modbus Exception" + ex.Message);
+            }
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            master_pcs.WriteSingleRegister(1,commend_charge_i,10);
+            master_pcs.WriteSingleRegister(1, commend_discharge_i, 10);
+        }
+
         private void timertrickAtBeginning_Tick(object sender, EventArgs e)
         {
 
