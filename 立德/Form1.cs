@@ -68,8 +68,8 @@ namespace modbus_mongoDB建立
         //private string mlabconn = "mongodb://tsai_user:0000@localhost:27017";
         #endregion
         #region 地址 
-        ushort bat_v_address = 3140;//電池電壓 
-        ushort ac_v_address = 3113;//電池電壓 
+        ushort bat_v_address = 3141;//電池電壓 
+        ushort ac_v_address = 3113;//電池電流
         ushort commend_mode = 3400;//工作模式  1 充電 2 放電 
         ushort commend_charge_i = 3402;//充電電流指令  
         ushort commend_discharge_i = 3404;//放電電流指令  
@@ -681,9 +681,21 @@ namespace modbus_mongoDB建立
             //Mongo_Reset(local_db, ID, "error test7897", time_now);
 
         }
-
+         
         private void button2_Click(object sender, EventArgs e)
         {
+            byte slaveid = 1;
+            ushort value = 10;
+
+            ushort a = (ushort)Convert.ToInt32("0x3110", 10);
+            Debug.Print("a :" + a);
+            master_pcs.WriteSingleRegister(slaveid, (ushort)13313, value);//commend_charge_i
+            int decValue = int.Parse(bat_v_address.ToString(), System.Globalization.NumberStyles.HexNumber)-1;
+            Debug.Print("decValue" + decValue);
+            ushort[] holdingregister_dc = master_pcs.ReadHoldingRegisters(1, (ushort)decValue, 2);
+            //13 會寫 14 
+            Debug.Print("bat_v" + holdingregister_dc[0].ToString());
+            Debug.Print("bat_i" + to_2complement (holdingregister_dc[1]).ToString());
             #region pcs上傳資料
             ushort[] pcs_data = new ushort[53];
             for (ushort i = 0; i < pcs_data.Length; i++)
@@ -735,6 +747,44 @@ namespace modbus_mongoDB建立
             #endregion
 
             #endregion
+
+        }
+        private ushort negative2complement(double num)
+        {
+            if (num < 0)
+            {
+                return (ushort)(65536 + num);
+            }
+            else
+            {
+                return (ushort)num;
+            }
+        }
+        private int to_2complement(int value)
+        {//把功率轉換成2的補數 
+            if (value > 32768)
+            {
+
+                return value - 65536;
+            }
+            else
+            {
+                return value;
+            }
+            //Now value is -100
+        }
+        private int negative2complement(int value)
+        {//把功率轉換成2的補數 
+            if (value < 0)
+            {
+                //return value + 256;
+                return value + 65536;
+            }
+            else
+            {
+                return value;
+            }
+            //Now value is -100
         }
     }
 }
