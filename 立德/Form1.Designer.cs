@@ -33,6 +33,10 @@
             this.button1 = new System.Windows.Forms.Button();
             this.button2 = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
+            this.button3 = new System.Windows.Forms.Button();
+            this.timer_read_upload = new System.Windows.Forms.Timer(this.components);
+            this.lv = new System.Windows.Forms.ListView();
+            this.button4 = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // timertrickAtBeginning
@@ -67,11 +71,48 @@
             this.label1.TabIndex = 2;
             this.label1.Text = "label1";
             // 
+            // button3
+            // 
+            this.button3.Location = new System.Drawing.Point(188, 164);
+            this.button3.Name = "button3";
+            this.button3.Size = new System.Drawing.Size(163, 34);
+            this.button3.TabIndex = 3;
+            this.button3.Text = "讀取資料並且上傳";
+            this.button3.UseVisualStyleBackColor = true;
+            this.button3.Click += new System.EventHandler(this.button3_Click);
+            // 
+            // timer_read_upload
+            // 
+            this.timer_read_upload.Interval = 1000;
+            this.timer_read_upload.Tick += new System.EventHandler(this.timer_read_upload_Tick);
+            // 
+            // lv
+            // 
+            this.lv.HideSelection = false;
+            this.lv.Location = new System.Drawing.Point(357, 164);
+            this.lv.Name = "lv";
+            this.lv.Size = new System.Drawing.Size(444, 256);
+            this.lv.TabIndex = 149;
+            this.lv.UseCompatibleStateImageBehavior = false;
+            // 
+            // button4
+            // 
+            this.button4.Location = new System.Drawing.Point(734, 92);
+            this.button4.Name = "button4";
+            this.button4.Size = new System.Drawing.Size(85, 49);
+            this.button4.TabIndex = 150;
+            this.button4.Text = "設定功率";
+            this.button4.UseVisualStyleBackColor = true;
+            this.button4.Click += new System.EventHandler(this.button4_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 450);
+            this.ClientSize = new System.Drawing.Size(890, 450);
+            this.Controls.Add(this.button4);
+            this.Controls.Add(this.lv);
+            this.Controls.Add(this.button3);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.button1);
@@ -89,6 +130,10 @@
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.Button button2;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Button button3;
+        private System.Windows.Forms.Timer timer_read_upload;
+        private System.Windows.Forms.ListView lv;
+        private System.Windows.Forms.Button button4;
     }
 }
 
