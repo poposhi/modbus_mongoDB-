@@ -70,7 +70,7 @@ namespace modbus_mongoDB建立
         #region 地址 
         ushort bat_v_address = (ushort) (Convert.ToInt32("3140", 16));//電池電壓 
         ushort ac_v_address = (ushort)Convert.ToInt32("3113", 16);//
-        ushort commend_mode = (ushort) (Convert.ToInt32("3400", 16));//工作模式  1 充電 2 放電 
+        ushort commend_mode = (ushort) (Convert.ToInt32("3400", 16));//工作模式  1 放電 2 充電 
         ushort commend_charge_i = (ushort)Convert.ToInt32("3402", 16);//充電電流指令  
         ushort commend_discharge_i = (ushort)Convert.ToInt32("3404", 16);//放電電流指令  
         
@@ -522,22 +522,24 @@ namespace modbus_mongoDB建立
                 Console.WriteLine("Reset Error");
             }
         }
-        private void Read_EMS_Control(string equi_id)
+        private int Read_EMS_Control(IMongoDatabase db, string equi_id)
         {//讀取EMS的設定點 
             try
             {
                 DateTime last_event = DateTime.Now;
                 string event_str;
                 //var sort = Builders<BsonDocument>.Sort.("time");
-                var ecoll = ems_db.GetCollection<BsonDocument>("control");  //指定寫入給"categories"此collection  
+                var ecoll = db.GetCollection<BsonDocument>("control");  //指定寫入給"categories"此collection  
                 var efilter = Builders<BsonDocument>.Filter.Eq("ID", equi_id);
                 var sort = Builders<BsonDocument>.Sort.Descending("time");
                 var cursor = ecoll.Find(efilter).Sort(sort).Limit(1).ToList(); //查詢最新一筆的資料 
+                int mode_now = 0;
                 foreach (var event_log in cursor)
                 {
                     try
                     {
                         int mode = int.Parse(event_log.GetValue("mode").ToString());
+                        mode_now = mode;
                         if (mode == 0)
                         {
                             Grid_Control.mode_name = Mode_Name.Stop;
@@ -728,6 +730,7 @@ namespace modbus_mongoDB建立
                         //更新控制器的設定點 
                         Grid_Control.mode = mode;
                         Grid_Control.mode_name = Grid_Control.mode_define[mode];
+                        
 
                     }
                     catch (Exception ex)
@@ -736,10 +739,14 @@ namespace modbus_mongoDB建立
                         
                         Console.WriteLine(ex.Message);
                         //goto End;
+                        
                     }
                 }
+                return mode_now;
             }
-            catch (Exception ex) { Console.WriteLine("Read_EMS"); }
+            catch (Exception ex) { Console.WriteLine("Read_EMS");
+                return 0;
+            }
             /*
             try
             {
@@ -1061,6 +1068,41 @@ namespace modbus_mongoDB建立
             #endregion
 
         }
+
+        private void button5_Click(object sender, EventArgs e)
+        {//測試讀取ems
+            int mode = 0;
+            mode = Read_EMS_Control(ems_db, "5d358796e134ebdcb105c343");
+            if (mode ==1)
+            {
+                Debug.Print("現在是p q模式 ");
+                Debug.Print("Basic_Control.p_ref : " + Basic_Control.p_ref.ToString());
+                Debug.Print("Basic_Control.q_ref : " + Basic_Control.q_ref.ToString());
+                if (Basic_Control.p_ref >0)
+                {
+                    master_pcs.WriteSingleRegister(1, commend_mode, 1);
+                    Thread.Sleep(200);
+                    master_pcs.WriteSingleRegister(1, commend_discharge_i, (ushort)Basic_Control.p_ref);
+                }
+                if (Basic_Control.p_ref <0)
+                {
+                    master_pcs.WriteSingleRegister(1, commend_mode, 0);
+                    Thread.Sleep(200);
+                    master_pcs.WriteSingleRegister(1, commend_charge_i, (ushort)Basic_Control.p_ref);
+                }
+                
+                
+            }
+            
+            
+
+        }
+
+        private void timer_set_pq_Tick(object sender, EventArgs e)
+        {
+            button5_Click(sender, e);
+        }
+
         private ushort negative2complement(double num)
         {
             if (num < 0)

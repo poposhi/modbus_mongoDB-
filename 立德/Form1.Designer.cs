@@ -37,6 +37,9 @@
             this.timer_read_upload = new System.Windows.Forms.Timer(this.components);
             this.lv = new System.Windows.Forms.ListView();
             this.button4 = new System.Windows.Forms.Button();
+            this.button5 = new System.Windows.Forms.Button();
+            this.timer_set_pq = new System.Windows.Forms.Timer(this.components);
+            this.button6 = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // timertrickAtBeginning
@@ -105,11 +108,37 @@
             this.button4.UseVisualStyleBackColor = true;
             this.button4.Click += new System.EventHandler(this.button4_Click);
             // 
+            // button5
+            // 
+            this.button5.Location = new System.Drawing.Point(188, 224);
+            this.button5.Name = "button5";
+            this.button5.Size = new System.Drawing.Size(109, 34);
+            this.button5.TabIndex = 151;
+            this.button5.Text = "測試讀取ems";
+            this.button5.UseVisualStyleBackColor = true;
+            this.button5.Click += new System.EventHandler(this.button5_Click);
+            // 
+            // timer_set_pq
+            // 
+            this.timer_set_pq.Interval = 1000;
+            this.timer_set_pq.Tick += new System.EventHandler(this.timer_set_pq_Tick);
+            // 
+            // button6
+            // 
+            this.button6.Location = new System.Drawing.Point(55, 296);
+            this.button6.Name = "button6";
+            this.button6.Size = new System.Drawing.Size(279, 34);
+            this.button6.TabIndex = 152;
+            this.button6.Text = "啟動每秒鐘任務 (讀取上傳_讀取設定點)";
+            this.button6.UseVisualStyleBackColor = true;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(890, 450);
+            this.Controls.Add(this.button6);
+            this.Controls.Add(this.button5);
             this.Controls.Add(this.button4);
             this.Controls.Add(this.lv);
             this.Controls.Add(this.button3);
@@ -134,6 +163,9 @@
         private System.Windows.Forms.Timer timer_read_upload;
         private System.Windows.Forms.ListView lv;
         private System.Windows.Forms.Button button4;
+        private System.Windows.Forms.Button button5;
+        private System.Windows.Forms.Timer timer_set_pq;
+        private System.Windows.Forms.Button button6;
     }
 }
 
