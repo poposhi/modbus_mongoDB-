@@ -28,6 +28,7 @@ namespace modbus_mongoDB建立
         public static int v_base = 380;
         public static int S_rated = 1;
     }
+
     public class PCS
     {
         private string device_ID = "";
@@ -2877,6 +2878,12 @@ namespace modbus_mongoDB建立
         public static double anti_pv_rated = 1000;
         public static double Flow_Back_p_variance_cal = 0; //沒有用到 
     }
+    class Basic_Control
+    {
+        public static int test_flag = 0;
+        public static double p_ref = 0;
+        public static double q_ref = 0;
+    }
     class Grid_Control
     {
         //grid
@@ -2884,6 +2891,9 @@ namespace modbus_mongoDB建立
         public static double Grid_v = 0;
         public static int control_mode = 0;  ///目前模式:0:remote、1:loacal
         public static int schdule_mode = 0;  ///目前模式:0:pq、1:schdule
+        public static string mode_name;
+        public static int mode = 0;  ///目前模式:0:停止、1:穩定輸出、2:平滑化、3:需量、4:排程
+        public static string[] mode_define;
         //pcs
         public static double soc_max = 0;         //SOC最大值
         public static double soc_min = 0;         //SOC最小值
@@ -2902,6 +2912,25 @@ namespace modbus_mongoDB建立
         //各種功能合成的輸出 
         public static double AddUpEssPower = 0;
     }
+    public class Mode_Name
+    {
+        public const string Stop = "Stop";
+        public const string PQ_Control = "Watt/Var";
+        public const string Steady = "Stable Output";
+        public const string Smoothing = "Smoothing";
+        public const string Fp_Hys_Control = "Freq-Watt(Hys)";
+        public const string Fp_Control = "Freq-Watt";
+        public const string Vq_Control = "Volt-Var";
+        public const string Vp_Control = "Volt-Watt";
+        public const string Vpq_Control = "Volt-Watt/Var";
+        public const string Anti_Reverse = "Anti-Reverse";
+        public const string Demand = "Demand";
+        public const string Scheduling_1 = "Scheduling-1";
+        public const string Scheduling_2 = "Scheduling-2";
+        public const string Scheduling_3 = "Scheduling-3";
+
+    }
+
     class control_mode
     {
         //輸入遲滯曲線旗標(=1) 輸出功率 上一次頻率 上一次p  基本p 電網頻率 ...12個設定點     回傳P_tr (輸出功率)
@@ -3233,5 +3262,60 @@ namespace modbus_mongoDB建立
             #endregion
         }
 
+    }
+    class FR_Hys_Control
+    {
+        // public static double freq_limit = 0;      //頻率下限值
+        // public static double freq_ramp = 0;       //頻率變動斜率
+        public static double f1_set = 0;          //頻率點F1
+        public static double f2_set = 0;          //頻率點F2
+        public static double f3_set = 0;          //頻率點F3
+        public static double f4_set = 0;          //頻率點F4
+        public static double f5_set = 0;          //頻率點F5
+        public static double f6_set = 0;          //頻率點F6
+        public static double p1_set = 0;          //功率點P1
+        public static double p2_set = 0;          //功率點P2
+        public static double p3_set = 0;          //功率點P3
+        public static double p4_set = 0;         //功率點P4
+        public static double p5_set = 0;         //功率點P5
+        public static double p6_set = 0;         //功率點P6
+        public static double p_base = 0;         //頻率實功基底值
+        public static bool FR_Enable = false;    ///頻率實功模式參數勾選
+        public static double p_tr = 0;
+        /////////////////////////////////////////
+        public static int Hys_line = 1;
+        public static double grid_f_last;
+        public static double p_val_last;
+        //////測試
+        public static int test_flag = 0;
+        public static double f_test = 584;
+    }
+
+    class FR_line_Control
+    {
+        // public static double freq_limit = 0;      //頻率下限值
+        // public static double freq_ramp = 0;       //頻率變動斜率
+        public static double f1_set = 0;          //頻率點F1
+        public static double f2_set = 0;          //頻率點F2
+        public static double f3_set = 0;          //頻率點F3
+        public static double f4_set = 0;          //頻率點F4
+        public static double f5_set = 0;          //頻率點F5
+        public static double f6_set = 0;          //頻率點F6
+        public static double p1_set = 0;          //功率點P1
+        public static double p2_set = 0;          //功率點P2
+        public static double p3_set = 0;          //功率點P3
+        public static double p4_set = 0;         //功率點P4
+        public static double p5_set = 0;         //功率點P5
+        public static double p6_set = 0;         //功率點P6
+        public static double p_base = 0;         //頻率實功基底值
+        //public static bool FR_Enable = false;    ///頻率實功模式參數勾選
+        public static double p_tr = 0;
+        /////////////////////////////////////////
+        public static int Hys_line = 1;
+        public static double grid_f_last;
+        public static double p_val_last;
+        //////測試
+        public static int test_flag = 0;
+        public static double f_test = 584;
     }
 }

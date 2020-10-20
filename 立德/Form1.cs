@@ -494,6 +494,300 @@ namespace modbus_mongoDB建立
                 Console.WriteLine("ETMM70 Error");
             }
         }
+        
+        private void mongo_pcs_mode(IMongoDatabase db,string Slave,string error_msg)
+        {// 讀取最新的控制資料
+            try
+            {
+                DateTime last_event = DateTime.Now;
+                string event_str;
+                var sort = Builders<BsonDocument>.Sort.Descending("time");
+                var coll = db.GetCollection<BsonDocument>("pcs_mode");  //指定寫入給"categories"此collection  
+                var filter = Builders<BsonDocument>.Filter.Eq("ID", Slave) ;
+                var cursor = coll.Find(filter).Sort(sort).Limit(1).ToList();
+                foreach (var event_log in cursor)
+                {
+                    last_event = (DateTime)event_log.GetValue("time");
+                    event_str = event_log.GetValue("event").ToString();
+                }
+                var filter2 = Builders<BsonDocument>.Filter.Eq("ID", Slave) & Builders<BsonDocument>.Filter.Eq("event", error_msg) & Builders<BsonDocument>.Filter.Eq("time", last_event);
+                var update = Builders<BsonDocument>.Update.Set("returntime", DateTime.Now.AddHours(time_offset))
+                                                          .Set("EMS_RESET_Error", RESET_Error.EMS_Error)
+                                                          .Set("return_state", 1);
+                coll.UpdateOne(filter2, update);
+                //coll.Find(filter).Sort(sort)
+            }
+            catch
+            {
+                Console.WriteLine("Reset Error");
+            }
+        }
+        private void Read_EMS_Control(string equi_id)
+        {//讀取EMS的設定點 
+            try
+            {
+                DateTime last_event = DateTime.Now;
+                string event_str;
+                //var sort = Builders<BsonDocument>.Sort.("time");
+                var ecoll = ems_db.GetCollection<BsonDocument>("control");  //指定寫入給"categories"此collection  
+                var efilter = Builders<BsonDocument>.Filter.Eq("ID", equi_id);
+                var sort = Builders<BsonDocument>.Sort.Descending("time");
+                var cursor = ecoll.Find(efilter).Sort(sort).Limit(1).ToList(); //查詢最新一筆的資料 
+                foreach (var event_log in cursor)
+                {
+                    try
+                    {
+                        int mode = int.Parse(event_log.GetValue("mode").ToString());
+                        if (mode == 0)
+                        {
+                            Grid_Control.mode_name = Mode_Name.Stop;
+                        }
+                        else
+                        {//取出普通設定點資料 
+                            double soc_max = double.Parse(event_log.GetValue("soc_max").ToString());
+                            double soc_min = double.Parse(event_log.GetValue("soc_min").ToString());
+                            double c_rate = double.Parse(event_log.GetValue("C_Rate_Limit").ToString());
+                            double back_limit = double.Parse(event_log.GetValue("back_limit").ToString());
+                            double var1, var2, var3, var4;
+                            double[] var5, var6;
+
+                            Grid_Control.soc_max = soc_max;
+                            Grid_Control.soc_min = soc_min;
+
+                            switch (mode)
+                            {
+                                case 1:
+                                    var1 = double.Parse(event_log.GetValue("PQ_p_ref").ToString());
+                                    var2 = double.Parse(event_log.GetValue("PQ_q_ref").ToString());
+                                    Basic_Control.p_ref = var1;
+                                    Basic_Control.q_ref = var2;
+                                    break;
+                                case 2:
+                                    var1 = double.Parse(event_log.GetValue("Stable_p_tr_new").ToString());
+                                    var2 = double.Parse(event_log.GetValue("Stable_ramp_up").ToString());
+                                    var3 = double.Parse(event_log.GetValue("Stable_ramp_down").ToString());
+                                    //Steady.p_tr_new = var1;
+                                    //Steady.ramp_up = var2;
+                                    //Steady.ramp_down = var3;
+                                    break;
+                                case 3:
+                                    var1 = double.Parse(event_log.GetValue("Smooth_p_variance").ToString());
+                                    Smooth.p_variance = var1;
+                                    break;
+                                case 4:
+                                    var1 = double.Parse(event_log.GetValue("FP_Hys_p_base").ToString());
+                                    var5 = new double[12] {double.Parse(event_log.GetValue("f1_Hys_set").ToString()),double.Parse(event_log.GetValue("f2_Hys_set").ToString()),double.Parse(event_log.GetValue("f3_Hys_set").ToString()),double.Parse(event_log.GetValue("f4_Hys_set").ToString()),double.Parse(event_log.GetValue("f5_Hys_set").ToString()),double.Parse(event_log.GetValue("f6_Hys_set").ToString()),
+                                     double.Parse(event_log.GetValue("p1_Hys_set").ToString()), double.Parse(event_log.GetValue("p2_Hys_set").ToString()), double.Parse(event_log.GetValue("p3_Hys_set").ToString()), double.Parse(event_log.GetValue("p4_Hys_set").ToString()), double.Parse(event_log.GetValue("p5_Hys_set").ToString()), double.Parse(event_log.GetValue("p6_Hys_set").ToString())
+                                                    };
+                                    FR_Hys_Control.p_base = var1;
+                                    FR_Hys_Control.f1_set = var5[0];
+                                    FR_Hys_Control.f2_set = var5[1];
+                                    FR_Hys_Control.f3_set = var5[2];
+                                    FR_Hys_Control.f4_set = var5[3];
+                                    FR_Hys_Control.f5_set = var5[4];
+                                    FR_Hys_Control.f6_set = var5[5];
+                                    FR_Hys_Control.p1_set = var5[6];
+                                    FR_Hys_Control.p2_set = var5[7];
+                                    FR_Hys_Control.p3_set = var5[8];
+                                    FR_Hys_Control.p4_set = var5[9];
+                                    FR_Hys_Control.p5_set = var5[10];
+                                    FR_Hys_Control.p6_set = var5[11];
+                                    break;
+                                case 5:
+                                    var1 = double.Parse(event_log.GetValue("FP_line_p_base").ToString());
+                                    var5 = new double[12] {double.Parse(event_log.GetValue("f1_line_set").ToString()),double.Parse(event_log.GetValue("f2_line_set").ToString()),double.Parse(event_log.GetValue("f3_line_set").ToString()),double.Parse(event_log.GetValue("f4_line_set").ToString()),double.Parse(event_log.GetValue("f5_line_set").ToString()),double.Parse(event_log.GetValue("f6_line_set").ToString()),
+                                    double.Parse(event_log.GetValue("p1_line_set").ToString()), double.Parse(event_log.GetValue("p2_line_set").ToString()), double.Parse(event_log.GetValue("p3_line_set").ToString()), double.Parse(event_log.GetValue("p4_line_set").ToString()), double.Parse(event_log.GetValue("p5_line_set").ToString()), double.Parse(event_log.GetValue("p6_line_set").ToString())
+                                    };
+                                    FR_line_Control.p_base = var1;
+                                    FR_line_Control.f1_set = var5[0];
+                                    FR_line_Control.f2_set = var5[1];
+                                    FR_line_Control.f3_set = var5[2];
+                                    FR_line_Control.f4_set = var5[3];
+                                    FR_line_Control.f5_set = var5[4];
+                                    FR_line_Control.f6_set = var5[5];
+                                    FR_line_Control.p1_set = var5[6];
+                                    FR_line_Control.p2_set = var5[7];
+                                    FR_line_Control.p3_set = var5[8];
+                                    FR_line_Control.p4_set = var5[9];
+                                    FR_line_Control.p5_set = var5[10];
+                                    FR_line_Control.p6_set = var5[11];
+                                    break;
+                                case 6:
+                                    var1 = double.Parse(event_log.GetValue("Vq_q_base").ToString());
+                                    var2 = double.Parse(event_log.GetValue("Vpq_v_base").ToString());
+                                    var5 = new double[12] {double.Parse(event_log.GetValue("Vq_v1_set").ToString()), double.Parse(event_log.GetValue("Vq_v2_set").ToString()), double.Parse(event_log.GetValue("Vq_v3_set").ToString()), double.Parse(event_log.GetValue("Vq_v4_set").ToString()), double.Parse(event_log.GetValue("Vq_v5_set").ToString()), double.Parse(event_log.GetValue("Vq_v6_set").ToString()),
+                                                           double.Parse(event_log.GetValue("Vq_q1_set").ToString()), double.Parse(event_log.GetValue("Vq_q2_set").ToString()), double.Parse(event_log.GetValue("Vq_q3_set").ToString()), double.Parse(event_log.GetValue("Vq_q4_set").ToString()), double.Parse(event_log.GetValue("Vq_q5_set").ToString()), double.Parse(event_log.GetValue("Vq_q6_set").ToString())
+                                    };
+                                    Vq_Control.q_base = var1;
+                                    Vq_Control.v_base = var2;
+                                    Vq_Control.v1_set = var5[0];
+                                    Vq_Control.v2_set = var5[1];
+                                    Vq_Control.v3_set = var5[2];
+                                    Vq_Control.v4_set = var5[3];
+                                    Vq_Control.v5_set = var5[4];
+                                    Vq_Control.v6_set = var5[5];
+                                    Vq_Control.q1_set = var5[6];
+                                    Vq_Control.q2_set = var5[7];
+                                    Vq_Control.q3_set = var5[8];
+                                    Vq_Control.q4_set = var5[9];
+                                    Vq_Control.q5_set = var5[10];
+                                    Vq_Control.q6_set = var5[11];
+                                    break;
+                                case 7:
+                                    var1 = double.Parse(event_log.GetValue("Vp_p_base").ToString());
+                                    var2 = double.Parse(event_log.GetValue("Vpq_v_base").ToString());
+                                    var3 = double.Parse(event_log.GetValue("Vp_p_tr").ToString());
+                                    var6 = new double[16] {double.Parse(event_log.GetValue("Vp_v1_set").ToString()), double.Parse(event_log.GetValue("Vp_v2_set").ToString()), double.Parse(event_log.GetValue("Vp_v3_set").ToString()), double.Parse(event_log.GetValue("Vp_v4_set").ToString()), double.Parse(event_log.GetValue("Vp_v5_set").ToString()), double.Parse(event_log.GetValue("Vp_v6_set").ToString()),double.Parse(event_log.GetValue("Vp_v7_set").ToString()), double.Parse(event_log.GetValue("Vp_v8_set").ToString()),
+                                                           double.Parse(event_log.GetValue("Vp_p1_set").ToString()), double.Parse(event_log.GetValue("Vp_p2_set").ToString()), double.Parse(event_log.GetValue("Vp_p3_set").ToString()), double.Parse(event_log.GetValue("Vp_p4_set").ToString()), double.Parse(event_log.GetValue("Vp_p5_set").ToString()), double.Parse(event_log.GetValue("Vp_p6_set").ToString()), double.Parse(event_log.GetValue("Vp_p7_set").ToString()), double.Parse(event_log.GetValue("Vp_p8_set").ToString())
+                                    };
+                                    //Vp_Control.p_base = var1;
+                                    //Vp_Control.v_base = var2;
+                                    //Vp_Control.p_tr = var3;
+                                    //Vp_Control.v1_set = var6[0];
+                                    //Vp_Control.v2_set = var6[1];
+                                    //Vp_Control.v3_set = var6[2];
+                                    //Vp_Control.v4_set = var6[3];
+                                    //Vp_Control.v5_set = var6[4];
+                                    //Vp_Control.v6_set = var6[5];
+                                    //Vp_Control.v7_set = var6[6];
+                                    //Vp_Control.v8_set = var6[7];
+                                    //Vp_Control.p1_set = var6[8];
+                                    //Vp_Control.p2_set = var6[9];
+                                    //Vp_Control.p3_set = var6[10];
+                                    //Vp_Control.p4_set = var6[11];
+                                    //Vp_Control.p5_set = var6[12];
+                                    //Vp_Control.p6_set = var6[13];
+                                    //Vp_Control.p7_set = var6[14];
+                                    //Vp_Control.p8_set = var6[15];
+                                    break;
+                                case 8:
+                                    var1 = double.Parse(event_log.GetValue("Vp_p_base").ToString());
+                                    var2 = double.Parse(event_log.GetValue("Vq_q_base").ToString());
+                                    var3 = double.Parse(event_log.GetValue("Vpq_v_base").ToString());
+                                    var4 = double.Parse(event_log.GetValue("Vp_p_tr").ToString());
+                                    var5 = new double[12] {double.Parse(event_log.GetValue("Vq_v1_set").ToString()), double.Parse(event_log.GetValue("Vq_v2_set").ToString()), double.Parse(event_log.GetValue("Vq_v3_set").ToString()), double.Parse(event_log.GetValue("Vq_v4_set").ToString()), double.Parse(event_log.GetValue("Vq_v5_set").ToString()), double.Parse(event_log.GetValue("Vq_v6_set").ToString()),
+                                                           double.Parse(event_log.GetValue("Vq_q1_set").ToString()), double.Parse(event_log.GetValue("Vq_q2_set").ToString()), double.Parse(event_log.GetValue("Vq_q3_set").ToString()), double.Parse(event_log.GetValue("Vq_q4_set").ToString()), double.Parse(event_log.GetValue("Vq_q5_set").ToString()), double.Parse(event_log.GetValue("Vq_q6_set").ToString())
+                                    };
+                                    var6 = new double[16] {double.Parse(event_log.GetValue("Vp_v1_set").ToString()), double.Parse(event_log.GetValue("Vp_v2_set").ToString()), double.Parse(event_log.GetValue("Vp_v3_set").ToString()), double.Parse(event_log.GetValue("Vp_v4_set").ToString()), double.Parse(event_log.GetValue("Vp_v5_set").ToString()), double.Parse(event_log.GetValue("Vp_v6_set").ToString()),double.Parse(event_log.GetValue("Vp_v7_set").ToString()), double.Parse(event_log.GetValue("Vp_v8_set").ToString()),
+                                                           double.Parse(event_log.GetValue("Vp_p1_set").ToString()), double.Parse(event_log.GetValue("Vp_p2_set").ToString()), double.Parse(event_log.GetValue("Vp_p3_set").ToString()), double.Parse(event_log.GetValue("Vp_p4_set").ToString()), double.Parse(event_log.GetValue("Vp_p5_set").ToString()), double.Parse(event_log.GetValue("Vp_p6_set").ToString()), double.Parse(event_log.GetValue("Vp_p7_set").ToString()), double.Parse(event_log.GetValue("Vp_p8_set").ToString())
+                                    };
+                                    Vq_Control.q_base = var2;
+                                    Vq_Control.v_base = var3;
+                                    Vq_Control.v1_set = var5[0];
+                                    Vq_Control.v2_set = var5[1];
+                                    Vq_Control.v3_set = var5[2];
+                                    Vq_Control.v4_set = var5[3];
+                                    Vq_Control.v5_set = var5[4];
+                                    Vq_Control.v6_set = var5[5];
+                                    Vq_Control.q1_set = var5[6];
+                                    Vq_Control.q2_set = var5[7];
+                                    Vq_Control.q3_set = var5[8];
+                                    Vq_Control.q4_set = var5[9];
+                                    Vq_Control.q5_set = var5[10];
+                                    Vq_Control.q6_set = var5[11];
+                                    //Vp_Control.p_base = var1;
+                                    //Vp_Control.v_base = var3;
+                                    //Vp_Control.p_tr = var4;
+                                    //Vp_Control.v1_set = var6[0];
+                                    //Vp_Control.v2_set = var6[1];
+                                    //Vp_Control.v3_set = var6[2];
+                                    //Vp_Control.v4_set = var6[3];
+                                    //Vp_Control.v5_set = var6[4];
+                                    //Vp_Control.v6_set = var6[5];
+                                    //Vp_Control.v7_set = var6[6];
+                                    //Vp_Control.v8_set = var6[7];
+                                    //Vp_Control.p1_set = var6[8];
+                                    //Vp_Control.p2_set = var6[9];
+                                    //Vp_Control.p3_set = var6[10];
+                                    //Vp_Control.p4_set = var6[11];
+                                    //Vp_Control.p5_set = var6[12];
+                                    //Vp_Control.p6_set = var6[13];
+                                    //Vp_Control.p7_set = var6[14];
+                                    //Vp_Control.p8_set = var6[15];
+                                    break;
+                                //case 9:
+                                //    var1 = double.Parse(event_log.GetValue("Anti_p_limit_new").ToString());
+                                //    var2 = double.Parse(event_log.GetValue("Anti_ramp_down").ToString());
+                                //    var3 = double.Parse(event_log.GetValue("Anti_p_variance").ToString());
+                                //    Smooth.p_limit_new = var1;
+                                //    Smooth.ramp_down = var2;
+                                //    Smooth.p_variance = var3;
+                                //    break;
+
+                                //case 10:
+                                //    var1 = double.Parse(event_log.GetValue("Demand_limit").ToString());
+                                //    var2 = double.Parse(event_log.GetValue("Demand_time_interval").ToString());
+                                //    Demand.Demand_limit = var1;
+                                //    Demand.time_interval = var2;
+                                //    break;
+
+                            }
+
+
+                        }
+                        //更新控制器的設定點 
+                        Grid_Control.mode = mode;
+                        Grid_Control.mode_name = Grid_Control.mode_define[mode];
+
+                    }
+                    catch (Exception ex)
+                    {
+                        //PCS.EMS_Error = 1;
+                        
+                        Console.WriteLine(ex.Message);
+                        //goto End;
+                    }
+                }
+            }
+            catch (Exception ex) { Console.WriteLine("Read_EMS"); }
+            /*
+            try
+            {
+                var ecoll = ems_db.GetCollection<BsonDocument>("pv_plant");  //指定寫入給"categories"此collection  
+                var efilter = Builders<BsonDocument>.Filter.Eq("ID", "5d1400da5170afa1dbc0c360");
+                var sort = Builders<BsonDocument>.Sort.Descending("time");
+                //var cursor = coll.Find(new BsonDocument()).Sort(sort).Limit(1).ToList();
+                var cursor = ecoll.Find(efilter).Sort(sort).Limit(1).ToList();
+
+                try
+                {
+                    if (cursor.Count > 0)                   //等於0即List是空的，代表mongo資料庫並沒有此Collection
+                    {
+                        foreach (var event_log in cursor)   ///////查詢缺少的資料，一次最多補20筆
+                        {
+                            Grid_Control.meter_p = double.Parse(event_log.GetValue("p").ToString());        //PV輸出功率
+                        }
+                    }
+                }
+                catch (Exception exception) { Console.WriteLine("Read EMS_PV_P not data" + "\r\n" + exception.Message); }
+            }
+            catch (Exception exception) { Console.WriteLine("Read EMS_PV_P Error" + "\r\n" + exception.Message); }
+            */
+            /*
+            try
+            {
+                var ecoll = ems_db.GetCollection<BsonDocument>("bess_plant");  //指定寫入給"categories"此collection  
+                var efilter = Builders<BsonDocument>.Filter.Eq("ID", "5dae386b64acb8967a39f045");       //MGC1
+                //var efilter = Builders<BsonDocument>.Filter.Eq("ID", "5d3587b9e134ebdcb105c344");       //MGC2
+                var sort = Builders<BsonDocument>.Sort.Descending("time");
+                //var cursor = coll.Find(new BsonDocument()).Sort(sort).Limit(1).ToList();
+                var cursor = ecoll.Find(efilter).Sort(sort).Limit(1).ToList();
+
+                try
+                {
+                    if (cursor.Count > 0)                   //等於0即List是空的，代表mongo資料庫並沒有此Collection
+                    {
+                        foreach (var event_log in cursor)   ///////查詢缺少的資料，一次最多補20筆
+                        {
+                            Grid_Control.Grid_f = double.Parse(event_log.GetValue("f").ToString());        //系統頻率
+                        }
+                    }
+                }
+                catch (Exception exception) { Console.WriteLine("Read EMS_System_F not data" + "\r\n" + exception.Message); }
+            }
+            catch (Exception exception) { Console.WriteLine("Read EMS_System_F Error" + "\r\n" + exception.Message); }
+            */
+        }
         #endregion
 
         #region 建立modbus master 
